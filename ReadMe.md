@@ -1,5 +1,7 @@
-#[WIP] RetinaFace-tf2
+# [WIP] RetinaFace-tf2
 This repository contains a tensorflow2 reimplementation of the model presented in the [RetinaFace paper](https://arxiv.org/pdf/1905.00641.pdf)
+
+![testing on a random internet selfie](retinaface_tf2_output.jpg)
 
 ### Credit
 This work is largely based on the original implementation by the amazing [insightface](https://github.com/deepinsight/insightface) team
@@ -10,6 +12,7 @@ This repository is a work in progress. Precision seems to be OK for the network 
 ### Test
 Download pretrained weights on [Dropbox](https://www.dropbox.com/s/g4f2lap9cyrdfw5/retinafaceweights.npy?dl=0)  
 Put weights in data/ folder  
+Run make  
 Run test.py
 
 ### TODO
@@ -17,4 +20,4 @@ Run test.py
 * manage to make variable input size network run on gpu
 * manage to make nms run on gpu
 * accelerate inference
-* test on WIDERFACE
+* calculate accuracy on WIDERFACE

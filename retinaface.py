@@ -63,8 +63,7 @@ class RetinaFace:
         net_out_reshaped = []
         for elt in net_out:
             net_out_reshaped.append(elt.transpose(0,3,1,2))
-        for elt in net_out_reshaped:
-            print(elt.shape)
+
         net_out = net_out_reshaped
         sym_idx = 0
 
@@ -77,7 +76,6 @@ class RetinaFace:
             scores = scores[:, self._num_anchors['stride%s'%s]:, :, :]
 
             bbox_deltas = net_out[sym_idx+1]
-            print("shape of bbox deltas : " + str(bbox_deltas.shape))
 
             height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
 

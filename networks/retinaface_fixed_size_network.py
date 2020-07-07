@@ -12,13 +12,15 @@ def load_weights(weight_file):
     return weights_dict
 
 
-class RetinaFace(object):
-    def __init__(self, weights_path):
+class RetinaFacenetwork(object):
+    def __init__(self, weights_path, size):
+        assert size%32==0
+        self.size = size
         self.weights_dict = load_weights(weights_path)
         self.model = self.load_model()
 
     def load_model(self):
-        data = tf.keras.Input(dtype=tf.float32, shape=(None, None, 3), name='data')
+        data = tf.keras.Input(dtype=tf.float32, shape=(self.size, self.size, 3), name='data')
         bn_data = self.batch_normalization(data, variance_epsilon=1.9999999494757503e-05, name='bn_data')
         conv0_pad = self.pad(bn_data, paddings=[[0, 0], [3, 3], [3, 3], [0, 0]])
         conv0 = self.convolution(conv0_pad, self.weights_dict, strides=[2, 2], padding='VALID', name='conv0')
@@ -306,7 +308,7 @@ class RetinaFace(object):
         ssh_c3_up = self.upsampling(ssh_c3_lateral_relu, (2, 2), "ssh_c3_up")
         ssh_m3_det_conv1_bn = self.batch_normalization(ssh_m3_det_conv1, variance_epsilon=1.9999999494757503e-05,name='ssh_m3_det_conv1_bn')
         ssh_m3_det_context_conv1_bn = self.batch_normalization(ssh_m3_det_context_conv1, variance_epsilon=1.9999999494757503e-05,name='ssh_m3_det_context_conv1_bn')
-        crop0 = self.crop(ssh_c3_up, ssh_c2_lateral_relu, "crop0")
+        crop0 = tf.identity(ssh_c3_up, "crop0")
         ssh_m3_det_context_conv1_relu = self.relu(ssh_m3_det_context_conv1_bn, name='ssh_m3_det_context_conv1_relu')
         plus0_v2 = ssh_c2_lateral_relu + crop0
         ssh_m3_det_context_conv2_pad = self.pad(ssh_m3_det_context_conv1_relu, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]])
@@ -342,7 +344,7 @@ class RetinaFace(object):
                                                   name='ssh_m2_det_conv1_bn')
         ssh_m2_det_context_conv1_bn = self.batch_normalization(ssh_m2_det_context_conv1, variance_epsilon=1.9999999494757503e-05,
                                                           name='ssh_m2_det_context_conv1_bn')
-        crop1 = self.crop(ssh_m2_red_up, ssh_m1_red_conv_relu, "crop1")
+        crop1 = tf.identity(ssh_m2_red_up, "crop1")
         ssh_m3_det_concat = tf.keras.layers.concatenate(
             [ssh_m3_det_conv1_bn, ssh_m3_det_context_conv2_bn, ssh_m3_det_context_conv3_2_bn], 3, name='ssh_m3_det_concat')
         ssh_m2_det_context_conv1_relu = self.relu(ssh_m2_det_context_conv1_bn, name='ssh_m2_det_context_conv1_relu')
@@ -359,11 +361,7 @@ class RetinaFace(object):
         face_rpn_cls_score_stride32 = self.convolution(ssh_m3_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',
                                                   name='face_rpn_cls_score_stride32')
 
-        input_shape = [tf.shape(face_rpn_cls_score_stride32)[k] for k in range(4)]
-        input_shape_1 = tf.dtypes.cast(input_shape[1]*2, dtype=tf.int32)
-        input_shape_2 = tf.dtypes.cast(input_shape[2], dtype=tf.int32)
-        input_shape_3 = tf.dtypes.cast(input_shape[3] / 2, dtype=tf.int32)
-        face_rpn_cls_score_reshape_stride32 = self.reshape(face_rpn_cls_score_stride32, [input_shape_1, input_shape_2, input_shape_3],
+        face_rpn_cls_score_reshape_stride32 = self.reshape(face_rpn_cls_score_stride32, (int(self.size/16),int(self.size/32),2),
                                                       "face_rpn_cls_score_reshape_stride32")
 
         face_rpn_bbox_pred_stride32 = self.convolution(ssh_m3_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',
@@ -380,13 +378,15 @@ class RetinaFace(object):
         ssh_c1_aggr_relu = self.relu(ssh_c1_aggr_bn, name='ssh_c1_aggr_relu')
 
         face_rpn_cls_prob_stride32 = tf.keras.layers.Softmax(name = 'face_rpn_cls_prob_stride32')(face_rpn_cls_score_reshape_stride32)
-        input_shape = [tf.shape(face_rpn_cls_prob_stride32)[k] for k in range(4)]
-        input_shape_1 = tf.dtypes.cast(input_shape[1] / 2, dtype=tf.int32)
-        input_shape_2 = tf.dtypes.cast(input_shape[2], dtype=tf.int32)
-        input_shape_3 = tf.dtypes.cast(input_shape[3] * 2, dtype=tf.int32)
 
-        face_rpn_cls_prob_reshape_stride32 = self.reshape(face_rpn_cls_prob_stride32, [input_shape_1, input_shape_2, input_shape_3],
+
+
+
+        face_rpn_cls_prob_reshape_stride32 = self.reshape(face_rpn_cls_prob_stride32, (int(self.size/32), int(self.size/32), 4),
                                                      "face_rpn_cls_prob_reshape_stride32")
+
+
+
 
         ssh_m2_det_context_conv3_2_pad = self.pad(ssh_m2_det_context_conv3_1_relu, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]])
         ssh_m2_det_context_conv3_2 = self.convolution(ssh_m2_det_context_conv3_2_pad, self.weights_dict, strides=[1, 1], padding='VALID',
@@ -421,7 +421,7 @@ class RetinaFace(object):
         input_shape_1 = tf.dtypes.cast(input_shape[1] * 2, dtype=tf.int32)
         input_shape_2 = tf.dtypes.cast(input_shape[2], dtype=tf.int32)
         input_shape_3 = tf.dtypes.cast(input_shape[3] / 2, dtype=tf.int32)
-        face_rpn_cls_score_reshape_stride16 = self.reshape(face_rpn_cls_score_stride16, [input_shape_1, input_shape_2, input_shape_3],
+        face_rpn_cls_score_reshape_stride16 = self.reshape(face_rpn_cls_score_stride16, (int(self.size/8), int(self.size/16), 2),
                                                       "face_rpn_cls_score_reshape_stride16")
 
         face_rpn_bbox_pred_stride16 = self.convolution(ssh_m2_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',
@@ -438,12 +438,12 @@ class RetinaFace(object):
         face_rpn_cls_prob_stride16 = tf.keras.layers.Softmax(name = 'face_rpn_cls_prob_stride16')(face_rpn_cls_score_reshape_stride16)
 
 
-        input_shape = [tf.shape(face_rpn_cls_prob_stride16)[k] for k in range(4)]
-        input_shape_1 = tf.dtypes.cast(input_shape[1] / 2, dtype=tf.int32)
-        input_shape_2 = tf.dtypes.cast(input_shape[2], dtype=tf.int32)
-        input_shape_3 = tf.dtypes.cast(input_shape[3] * 2, dtype=tf.int32)
-        face_rpn_cls_prob_reshape_stride16 = self.reshape(face_rpn_cls_prob_stride16, [input_shape_1, input_shape_2, input_shape_3],
+
+        face_rpn_cls_prob_reshape_stride16 = self.reshape(face_rpn_cls_prob_stride16, (int(self.size/16), int(self.size/16), 4),
                                                      "face_rpn_cls_prob_reshape_stride16")
+
+
+
 
         ssh_m1_det_context_conv3_2_pad = self.pad(ssh_m1_det_context_conv3_1_relu, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]])
         ssh_m1_det_context_conv3_2 = self.convolution(ssh_m1_det_context_conv3_2_pad, self.weights_dict, strides=[1, 1], padding='VALID',
@@ -458,11 +458,8 @@ class RetinaFace(object):
                                                  name='face_rpn_cls_score_stride8')
 
 
-        input_shape = [tf.shape(face_rpn_cls_score_stride8)[k] for k in range(4)]
-        input_shape_1 = tf.dtypes.cast(input_shape[1] * 2, dtype=tf.int32)
-        input_shape_2 = tf.dtypes.cast(input_shape[2], dtype=tf.int32)
-        input_shape_3 = tf.dtypes.cast(input_shape[3] / 2, dtype=tf.int32)
-        face_rpn_cls_score_reshape_stride8 = self.reshape(face_rpn_cls_score_stride8, [input_shape_1, input_shape_2, input_shape_3],
+
+        face_rpn_cls_score_reshape_stride8 = self.reshape(face_rpn_cls_score_stride8, (int(self.size/4), int(self.size/8), 2),
                                                      "face_rpn_cls_score_reshape_stride8")
 
         face_rpn_bbox_pred_stride8 = self.convolution(ssh_m1_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',
@@ -472,11 +469,10 @@ class RetinaFace(object):
 
 
         face_rpn_cls_prob_stride8 = tf.keras.layers.Softmax(name = 'face_rpn_cls_prob_stride8')(face_rpn_cls_score_reshape_stride8)
-        input_shape = [tf.shape(face_rpn_cls_prob_stride8)[k] for k in range(4)]
-        input_shape_1 = tf.dtypes.cast(input_shape[1] / 2, dtype=tf.int32)
-        input_shape_2 = tf.dtypes.cast(input_shape[2], dtype=tf.int32)
-        input_shape_3 = tf.dtypes.cast(input_shape[3] * 2, dtype=tf.int32)
-        face_rpn_cls_prob_reshape_stride8 = self.reshape(face_rpn_cls_prob_stride8, [input_shape_1, input_shape_2, input_shape_3],
+
+
+
+        face_rpn_cls_prob_reshape_stride8 = self.reshape(face_rpn_cls_prob_stride8, (int(self.size/8), int(self.size/8), 4),
                                                     "face_rpn_cls_prob_reshape_stride8")
 
 

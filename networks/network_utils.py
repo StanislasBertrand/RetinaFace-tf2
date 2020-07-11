@@ -144,16 +144,22 @@ def reshape(input_tensor, mode, name):
     return tf.keras.layers.Reshape(target_shape=[input_shape_1, input_shape_2, input_shape_3], name=name)(input_tensor)
 
 
-def reshape_provided_shape(input_tensor, shape, name):
-    """
-    Reshapes if we already know the desired output shape
+def reshape_mxnet_1(input_tensor, name):
+    inter_1 = tf.keras.layers.concatenate([input_tensor[:, :, :, 0], input_tensor[:, :, :, 1]], axis=1)
+    inter_2 = tf.keras.layers.concatenate([input_tensor[:, :, :, 2], input_tensor[:, :, :, 3]], axis=1)
+    final = tf.stack([inter_1, inter_2])
+    return tf.transpose(final, (1, 2, 3, 0), name=name)
 
-    :param input_tensor:
-    :param shape: desired output shape
-    :param name:
-    :return: reshaped tensor
-    """
-    return tf.keras.layers.Reshape(target_shape=shape, name=name)(input_tensor)
+
+def reshape_mxnet_2(input_tensor, name):
+    input_shape = [tf.shape(input_tensor)[k] for k in range(4)]
+    sz = tf.dtypes.cast(input_shape[1] / 2, dtype=tf.int32)
+    inter_1 = input_tensor[:, 0:sz, :, 0]
+    inter_2 = input_tensor[:, 0:sz, :, 1]
+    inter_3 = input_tensor[:, sz:, :, 0]
+    inter_4 = input_tensor[:, sz:, :, 1]
+    final = tf.stack([inter_1, inter_3, inter_2, inter_4])
+    return tf.transpose(final, (1, 2, 3, 0), name=name)
 
 
 def upsampling(input_tensor, size, name):

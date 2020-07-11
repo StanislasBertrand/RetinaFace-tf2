@@ -7,7 +7,8 @@ from .network_utils import (
     convolution,
     batch_normalization,
     crop,
-    reshape,
+    reshape_mxnet_1,
+    reshape_mxnet_2,
     upsampling
 )
 
@@ -267,7 +268,7 @@ class RetinaFaceNetwork(object):
         ssh_c1_aggr_pad                 = pad(plus1_v1, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]])
         ssh_c1_aggr                     = convolution(ssh_c1_aggr_pad, self.weights_dict, strides=[1, 1], padding='VALID', name='ssh_c1_aggr')
         face_rpn_cls_score_stride32     = convolution(ssh_m3_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_cls_score_stride32')
-        face_rpn_cls_score_reshape_stride32 = reshape(face_rpn_cls_score_stride32, 0,"face_rpn_cls_score_reshape_stride32")
+        face_rpn_cls_score_reshape_stride32 = reshape_mxnet_1(face_rpn_cls_score_stride32, "face_rpn_cls_score_reshape_stride32")
         face_rpn_bbox_pred_stride32     = convolution(ssh_m3_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_bbox_pred_stride32')
         face_rpn_landmark_pred_stride32 = convolution(ssh_m3_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_landmark_pred_stride32')
         ssh_m2_det_context_conv2_bn     = batch_normalization(ssh_m2_det_context_conv2, variance_epsilon=1.9999999494757503e-05,name='ssh_m2_det_context_conv2_bn')
@@ -276,7 +277,7 @@ class RetinaFaceNetwork(object):
         ssh_m2_det_context_conv3_1_relu = relu(ssh_m2_det_context_conv3_1_bn, name='ssh_m2_det_context_conv3_1_relu')
         ssh_c1_aggr_relu                = relu(ssh_c1_aggr_bn, name='ssh_c1_aggr_relu')
         face_rpn_cls_prob_stride32      = tf.keras.layers.Softmax(name = 'face_rpn_cls_prob_stride32')(face_rpn_cls_score_reshape_stride32)
-        face_rpn_cls_prob_reshape_stride32 = reshape(face_rpn_cls_prob_stride32, 1,"face_rpn_cls_prob_reshape_stride32")
+        face_rpn_cls_prob_reshape_stride32 = reshape_mxnet_2(face_rpn_cls_prob_stride32, "face_rpn_cls_prob_reshape_stride32")
         ssh_m2_det_context_conv3_2_pad  = pad(ssh_m2_det_context_conv3_1_relu, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]])
         ssh_m2_det_context_conv3_2      = convolution(ssh_m2_det_context_conv3_2_pad, self.weights_dict, strides=[1, 1], padding='VALID',name='ssh_m2_det_context_conv3_2')
         ssh_m1_det_conv1_pad            = pad(ssh_c1_aggr_relu, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]])
@@ -294,25 +295,25 @@ class RetinaFaceNetwork(object):
         ssh_m1_det_context_conv3_1_pad  = pad(ssh_m1_det_context_conv1_relu, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]])
         ssh_m1_det_context_conv3_1      = convolution(ssh_m1_det_context_conv3_1_pad, self.weights_dict, strides=[1, 1], padding='VALID',name='ssh_m1_det_context_conv3_1')
         face_rpn_cls_score_stride16     = convolution(ssh_m2_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_cls_score_stride16')
-        face_rpn_cls_score_reshape_stride16 = reshape(face_rpn_cls_score_stride16, 0,"face_rpn_cls_score_reshape_stride16")
+        face_rpn_cls_score_reshape_stride16 = self.reshape_mxnet_1(face_rpn_cls_score_stride16, "face_rpn_cls_score_reshape_stride16")
         face_rpn_bbox_pred_stride16     = convolution(ssh_m2_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_bbox_pred_stride16')
         face_rpn_landmark_pred_stride16 = convolution(ssh_m2_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_landmark_pred_stride16')
         ssh_m1_det_context_conv2_bn     = batch_normalization(ssh_m1_det_context_conv2, variance_epsilon=1.9999999494757503e-05,name='ssh_m1_det_context_conv2_bn')
         ssh_m1_det_context_conv3_1_bn   = batch_normalization(ssh_m1_det_context_conv3_1,variance_epsilon=1.9999999494757503e-05,name='ssh_m1_det_context_conv3_1_bn')
         ssh_m1_det_context_conv3_1_relu = relu(ssh_m1_det_context_conv3_1_bn, name='ssh_m1_det_context_conv3_1_relu')
         face_rpn_cls_prob_stride16      = tf.keras.layers.Softmax(name = 'face_rpn_cls_prob_stride16')(face_rpn_cls_score_reshape_stride16)
-        face_rpn_cls_prob_reshape_stride16 = reshape(face_rpn_cls_prob_stride16, 1,"face_rpn_cls_prob_reshape_stride16")
+        face_rpn_cls_prob_reshape_stride16 = self.reshape_mxnet_2(face_rpn_cls_prob_stride16, "face_rpn_cls_prob_reshape_stride16")
         ssh_m1_det_context_conv3_2_pad  = pad(ssh_m1_det_context_conv3_1_relu, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]])
         ssh_m1_det_context_conv3_2      = convolution(ssh_m1_det_context_conv3_2_pad, self.weights_dict, strides=[1, 1], padding='VALID',name='ssh_m1_det_context_conv3_2')
         ssh_m1_det_context_conv3_2_bn   = batch_normalization(ssh_m1_det_context_conv3_2,variance_epsilon=1.9999999494757503e-05,name='ssh_m1_det_context_conv3_2_bn')
         ssh_m1_det_concat               = tf.keras.layers.concatenate([ssh_m1_det_conv1_bn, ssh_m1_det_context_conv2_bn, ssh_m1_det_context_conv3_2_bn], 3, name='ssh_m1_det_concat')
         ssh_m1_det_concat_relu          = relu(ssh_m1_det_concat, name='ssh_m1_det_concat_relu')
         face_rpn_cls_score_stride8      = convolution(ssh_m1_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_cls_score_stride8')
-        face_rpn_cls_score_reshape_stride8 = reshape(face_rpn_cls_score_stride8, 0,"face_rpn_cls_score_reshape_stride8")
+        face_rpn_cls_score_reshape_stride8 = self.reshape_mxnet_1(face_rpn_cls_score_stride8, "face_rpn_cls_score_reshape_stride8")
         face_rpn_bbox_pred_stride8      = convolution(ssh_m1_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_bbox_pred_stride8')
         face_rpn_landmark_pred_stride8  = convolution(ssh_m1_det_concat_relu, self.weights_dict, strides=[1, 1], padding='VALID',name='face_rpn_landmark_pred_stride8')
         face_rpn_cls_prob_stride8       = tf.keras.layers.Softmax(name = 'face_rpn_cls_prob_stride8')(face_rpn_cls_score_reshape_stride8)
-        face_rpn_cls_prob_reshape_stride8 = reshape(face_rpn_cls_prob_stride8, 1,"face_rpn_cls_prob_reshape_stride8")
+        face_rpn_cls_prob_reshape_stride8 = self.reshape_mxnet_2(face_rpn_cls_prob_stride8, "face_rpn_cls_prob_reshape_stride8")
 
         model = tf.keras.models.Model(inputs=data,
                                       outputs=[face_rpn_cls_prob_reshape_stride32,

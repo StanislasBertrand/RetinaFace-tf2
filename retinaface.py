@@ -6,12 +6,10 @@ from rcnn.processing.nms import gpu_nms_wrapper, cpu_nms_wrapper
 from networks.retinaface_network import RetinaFaceNetwork
 
 class RetinaFace:
-    def __init__(self, weights_path, img_size, nms=0.4, nocrop=False, decay4 = 0.5, vote=False):
+    def __init__(self, model_weights, ctx_id=0, nms=0.4, decay4 = 0.5):
+        self.ctx_id = ctx_id
         self.decay4 = decay4
         self.nms_threshold = nms
-        self.vote = vote
-        self.nocrop = nocrop
-        self.debug = False
         self.fpn_keys = []
         self.anchor_cfg = None
         pixel_means=[0.0, 0.0, 0.0]
@@ -21,62 +19,59 @@ class RetinaFace:
         _ratio = (1.,)
         self._feat_stride_fpn = [32, 16, 8]
         self.anchor_cfg = {
-              '32': {'SCALES': (32,16), 'BASE_SIZE': 16, 'RATIOS': _ratio, 'ALLOWED_BORDER': 9999},
-              '16': {'SCALES': (8,4), 'BASE_SIZE': 16, 'RATIOS': _ratio, 'ALLOWED_BORDER': 9999},
-              '8': {'SCALES': (2,1), 'BASE_SIZE': 16, 'RATIOS': _ratio, 'ALLOWED_BORDER': 9999},
+          '32': {'SCALES': (32,16), 'BASE_SIZE': 16, 'RATIOS': _ratio, 'ALLOWED_BORDER': 9999},
+          '16': {'SCALES': (8,4), 'BASE_SIZE': 16, 'RATIOS': _ratio, 'ALLOWED_BORDER': 9999},
+          '8': {'SCALES': (2,1), 'BASE_SIZE': 16, 'RATIOS': _ratio, 'ALLOWED_BORDER': 9999},
         }
         for s in self._feat_stride_fpn:
             self.fpn_keys.append('stride%s'%s)
-        dense_anchor = False
-        self._anchors_fpn = dict(zip(self.fpn_keys, generate_anchors_fpn(dense_anchor=dense_anchor, cfg=self.anchor_cfg)))
+        self._anchors_fpn = dict(zip(self.fpn_keys, generate_anchors_fpn(dense_anchor=False, cfg=self.anchor_cfg)))
         for k in self._anchors_fpn:
-          v = self._anchors_fpn[k].astype(np.float32)
-          self._anchors_fpn[k] = v
+            v = self._anchors_fpn[k].astype(np.float32)
+            self._anchors_fpn[k] = v
 
         self._num_anchors = dict(zip(self.fpn_keys, [anchors.shape[0] for anchors in self._anchors_fpn.values()]))
-        # if use_gpu:
-        #   self.nms = gpu_nms_wrapper(self.nms_threshold, self.ctx_id)
-        # else:
-        #   self.nms = cpu_nms_wrapper(self.nms_threshold)
-        self.nms = cpu_nms_wrapper(self.nms_threshold)
+        if self.ctx_id>=0:
+            self.nms = gpu_nms_wrapper(self.nms_threshold, self.ctx_id)
+        else:
+            self.nms = cpu_nms_wrapper(self.nms_threshold)
         self.pixel_means = np.array(pixel_means, dtype=np.float32)
         self.pixel_stds = np.array(pixel_stds, dtype=np.float32)
         self.pixel_scale = float(pixel_scale)
         self.use_landmarks = True
         self.cascade = 0
         self.bbox_stds = [1.0, 1.0, 1.0, 1.0]
-        self.landmark_std = 1.0
-        self.model = RetinaFaceNetwork(weights_path).model
+
+
+        self.model = RetinaFaceNetwork(model_weights).model
 
 
     def detect(self, img, threshold=0.5):
         proposals_list = []
         scores_list = []
         landmarks_list = []
-        strides_list = []
-        im = img.copy()
-        im = im.astype(np.float32)
-        im_info = [im.shape[0], im.shape[1]]
-        im_tensor = img[np.newaxis, :, :, :]
-
-        net_out = self.model.predict(im_tensor)
+        img = img.astype(np.float32)
+        img = img.astype(np.float32)
+        im_info = [img.shape[0], img.shape[1]]
+        im_tensor = np.zeros((1, 3, img.shape[0], img.shape[1]))
+        for i in range(3):
+            im_tensor[0, i, :, :] = (img[:, :, 2 - i] / self.pixel_scale - self.pixel_means[2 - i]) / self.pixel_stds[
+                2 - i]
+        net_out = self.model.predict(im_tensor.transpose(0, 2, 3, 1))
         net_out_reshaped = []
         for elt in net_out:
-            net_out_reshaped.append(elt.transpose(0,3,1,2))
-
+            net_out_reshaped.append(elt.transpose(0, 3, 1, 2))
         net_out = net_out_reshaped
+
         sym_idx = 0
 
         for _idx,s in enumerate(self._feat_stride_fpn):
             _key = 'stride%s'%s
             stride = int(s)
-
             scores = net_out[sym_idx]
-
             scores = scores[:, self._num_anchors['stride%s'%s]:, :, :]
 
-            bbox_deltas = net_out[sym_idx+1]
-
+            bbox_deltas = net_out[sym_idx + 1]
             height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
 
             A = self._num_anchors['stride%s'%s]
@@ -85,7 +80,6 @@ class RetinaFace:
             anchors = anchors_plane(height, width, stride, anchors_fpn)
             anchors = anchors.reshape((K * A, 4))
             scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
-
 
             bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1))
             bbox_pred_len = bbox_deltas.shape[3]//A
@@ -96,87 +90,85 @@ class RetinaFace:
             bbox_deltas[:, 3::4] = bbox_deltas[:,3::4] * self.bbox_stds[3]
             proposals = self.bbox_pred(anchors, bbox_deltas)
 
-
             proposals = clip_boxes(proposals, im_info[:2])
+
 
             if stride==4 and self.decay4<1.0:
                 scores *= self.decay4
 
             scores_ravel = scores.ravel()
-
             order = np.where(scores_ravel>=threshold)[0]
-
             proposals = proposals[order, :]
             scores = scores[order]
 
-
-            proposals[:,0:4] /= 1.0
-
             proposals_list.append(proposals)
             scores_list.append(scores)
-            if self.nms_threshold<0.0:
-                _strides = np.empty(shape=(scores.shape), dtype=np.float32)
-                _strides.fill(stride)
-                strides_list.append(_strides)
 
-            if not self.vote and self.use_landmarks:
-                landmark_deltas = net_out[sym_idx+2]
-                landmark_pred_len = landmark_deltas.shape[1]//A
-                landmark_deltas = landmark_deltas.transpose((0, 2, 3, 1)).reshape((-1, 5, landmark_pred_len//5))
-                landmark_deltas *= self.landmark_std
-                landmarks = self.landmark_pred(anchors, landmark_deltas)
-                landmarks = landmarks[order, :]
+            landmark_deltas = net_out[sym_idx + 2]
+            landmark_pred_len = landmark_deltas.shape[1]//A
+            landmark_deltas = landmark_deltas.transpose((0, 2, 3, 1)).reshape((-1, 5, landmark_pred_len//5))
+            landmarks = self.landmark_pred(anchors, landmark_deltas)
+            landmarks = landmarks[order, :]
 
-
-            landmarks[:,:,0:2] /= 1.0
 
             landmarks_list.append(landmarks)
-            if self.use_landmarks:
-                sym_idx += 3
-            else:
-                sym_idx += 2
-
+            sym_idx += 3
 
         proposals = np.vstack(proposals_list)
-        landmarks = None
         if proposals.shape[0]==0:
-            if self.use_landmarks:
-                landmarks = np.zeros( (0,5,2) )
-            if self.nms_threshold<0.0:
-                return np.zeros( (0,6) ), landmarks
-            else:
-                return np.zeros( (0,5) ), landmarks
-
+            landmarks = np.zeros( (0,5,2) )
+            return np.zeros( (0,5) ), landmarks
         scores = np.vstack(scores_list)
         scores_ravel = scores.ravel()
         order = scores_ravel.argsort()[::-1]
+
         proposals = proposals[order, :]
         scores = scores[order]
-        if self.nms_threshold<0.0:
-            strides = np.vstack(strides_list)
-            strides = strides[order]
-        if not self.vote and self.use_landmarks:
-            landmarks = np.vstack(landmarks_list)
-            landmarks = landmarks[order].astype(np.float32, copy=False)
+        landmarks = np.vstack(landmarks_list)
+        landmarks = landmarks[order].astype(np.float32, copy=False)
 
-        if self.nms_threshold>0.0:
-            pre_det = np.hstack((proposals[:,0:4], scores)).astype(np.float32, copy=False)
-            if not self.vote:
-                keep = self.nms(pre_det)
-                det = np.hstack( (pre_det, proposals[:,4:]) )
-                det = det[keep, :]
-            if self.use_landmarks:
-                landmarks = landmarks[keep]
-            else:
-                det = np.hstack( (pre_det, proposals[:,4:]) )
-                det = self.bbox_vote(det)
-        elif self.nms_threshold<0.0:
-            det = np.hstack((proposals[:,0:4], scores, strides)).astype(np.float32, copy=False)
-        else:
-            det = np.hstack((proposals[:,0:4], scores)).astype(np.float32, copy=False)
-
+        pre_det = np.hstack((proposals[:,0:4], scores)).astype(np.float32, copy=False)
+        keep = self.nms(pre_det)
+        det = np.hstack( (pre_det, proposals[:,4:]) )
+        det = det[keep, :]
+        landmarks = landmarks[keep]
 
         return det, landmarks
+
+    @staticmethod
+    def _filter_boxes(boxes, min_size):
+        """ Remove all boxes with any side smaller than min_size """
+        ws = boxes[:, 2] - boxes[:, 0] + 1
+        hs = boxes[:, 3] - boxes[:, 1] + 1
+        keep = np.where((ws >= min_size) & (hs >= min_size))[0]
+        return keep
+
+    @staticmethod
+    def _filter_boxes2(boxes, max_size, min_size):
+        """ Remove all boxes with any side smaller than min_size """
+        ws = boxes[:, 2] - boxes[:, 0] + 1
+        hs = boxes[:, 3] - boxes[:, 1] + 1
+        if max_size>0:
+            keep = np.where( np.minimum(ws, hs)<max_size )[0]
+        elif min_size>0:
+            keep = np.where( np.maximum(ws, hs)>min_size )[0]
+        return keep
+
+    @staticmethod
+    def _clip_pad(tensor, pad_shape):
+        """
+        Clip boxes of the pad area.
+        :param tensor: [n, c, H, W]
+        :param pad_shape: [h, w]
+        :return: [n, c, h, w]
+        """
+        H, W = tensor.shape[2:]
+        h, w = pad_shape
+
+        if h < H or w < W:
+            tensor = tensor[:, :, :h, :w].copy()
+
+        return tensor
 
     @staticmethod
     def bbox_pred(boxes, box_deltas):
@@ -188,7 +180,7 @@ class RetinaFace:
         :return: [N 4 * num_classes]
         """
         if boxes.shape[0] == 0:
-          return np.zeros((0, box_deltas.shape[1]))
+            return np.zeros((0, box_deltas.shape[1]))
 
         boxes = boxes.astype(np.float, copy=False)
         widths = boxes[:, 2] - boxes[:, 0] + 1.0
@@ -224,7 +216,7 @@ class RetinaFace:
     @staticmethod
     def landmark_pred(boxes, landmark_deltas):
         if boxes.shape[0] == 0:
-            return np.zeros((0, landmark_deltas.shape[1]))
+          return np.zeros((0, landmark_deltas.shape[1]))
         boxes = boxes.astype(np.float, copy=False)
         widths = boxes[:, 2] - boxes[:, 0] + 1.0
         heights = boxes[:, 3] - boxes[:, 1] + 1.0
@@ -235,6 +227,7 @@ class RetinaFace:
             pred[:,i,0] = landmark_deltas[:,i,0]*widths + ctr_x
             pred[:,i,1] = landmark_deltas[:,i,1]*heights + ctr_y
         return pred
+
 
     def bbox_vote(self, det):
         if det.shape[0] == 0:
@@ -264,7 +257,7 @@ class RetinaFace:
                         dets = np.row_stack((dets, det_accu))
                     except:
                         dets = det_accu
-                continue
+                        continue
             det_accu[:, 0:4] = det_accu[:, 0:4] * np.tile(det_accu[:, -1:], (1, 4))
             max_score = np.max(det_accu[:, 4])
             det_accu_sum = np.zeros((1, 5))

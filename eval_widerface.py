@@ -4,8 +4,17 @@ from absl import app, flags, logging
 from absl.flags import FLAGS
 from retinaface import RetinaFace
 
+
+flags.DEFINE_string('weights_path', './data/retinafaceweights.npy',
+                    'network weights path')
+flags.DEFINE_string('widerface_data_dir', '/home/bertrans/Downloads/WIDER_val/images/', 'data directory of widerface test set')
+flags.DEFINE_string('save_folder', './WiderFace-Evaluation/results_val/',
+                    'folder path to save evaluate results')
+
+
+
 def _main(_argv):
-    detector = RetinaFace(FLAGS.weights_path)
+    detector = RetinaFace(FLAGS.weights_path, -1)
     subdirs = [x[0] for x in os.walk(FLAGS.widerface_data_dir)][1:]
     save_dir = FLAGS.save_folder
     for subdir in subdirs:
@@ -15,7 +24,7 @@ def _main(_argv):
             os.mkdir(output_dir)
         for file in os.listdir(subdir):
             img = cv2.imread(os.path.join(subdir, file))
-            faces, ldmks = detector.detect(img, 0.8)
+            faces, ldmks = detector.detect(img, 0.7)
             with open(os.path.join(output_dir, file.replace("jpg", "txt")), "w+") as f:
                 f.write(file.split("/")[-1].split(".")[0] + "\n")
                 f.write(str(len(faces)) + "\n")

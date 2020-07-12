@@ -3,20 +3,20 @@ import numpy as np
 from absl import app, flags
 from absl.flags import FLAGS
 from retinaface import RetinaFace
+import os
 
 flags.DEFINE_string('weights_path', './data/retinafaceweights.npy',
                     'network weights path')
 flags.DEFINE_string('sample_img', './sample-images/random_internet_selfie.jpg', 'image to test on')
 flags.DEFINE_string('save_destination', 'retinaface_tf2_output.jpg', "destination image")
-flags.DEFINE_float('det_thresh', 0.9, "detection threshold")
+flags.DEFINE_float('det_thresh', 0.8, "detection threshold")
 flags.DEFINE_float('nms_thresh', 0.4, "nms threshold")
 
 
 def _main(_argv):
-    detector = RetinaFace(FLAGS.weights_path, nms = FLAGS.nms_thresh)
+    detector = RetinaFace("./data/retinafaceweights.npy", -1, 'net3')
     img = cv2.imread(FLAGS.sample_img)
     faces, landmarks = detector.detect(img, FLAGS.det_thresh)
-    np.save("faces.npy", faces)
     if faces is not None:
         print('found', faces.shape[0], 'faces')
         for i in range(faces.shape[0]):

@@ -11,10 +11,10 @@ flags.DEFINE_string('sample_img', './sample-images/random_internet_selfie.jpg', 
 flags.DEFINE_string('save_destination', 'retinaface_tf2_output.jpg', "destination image")
 flags.DEFINE_float('det_thresh', 0.8, "detection threshold")
 flags.DEFINE_float('nms_thresh', 0.4, "nms threshold")
-
+flags.DEFINE_bool('use_gpu_nms', True, "whethere to use gpu for nms")
 
 def _main(_argv):
-    detector = RetinaFace("./data/retinafaceweights.npy", -1, 'net3')
+    detector = RetinaFace(FLAGS.weights_path, FLAGS.use_gpu_nms, FLAGS.nms_thresh)
     img = cv2.imread(FLAGS.sample_img)
     faces, landmarks = detector.detect(img, FLAGS.det_thresh)
     if faces is not None:

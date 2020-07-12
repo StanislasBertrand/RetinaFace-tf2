@@ -6,8 +6,7 @@ from rcnn.processing.nms import gpu_nms_wrapper, cpu_nms_wrapper
 from networks.retinaface_network import RetinaFaceNetwork
 
 class RetinaFace:
-    def __init__(self, model_weights, ctx_id=0, nms=0.4, decay4 = 0.5):
-        self.ctx_id = ctx_id
+    def __init__(self, model_weights, use_gpu_nms=True, nms=0.4, decay4 = 0.5):
         self.decay4 = decay4
         self.nms_threshold = nms
         self.fpn_keys = []
@@ -31,8 +30,8 @@ class RetinaFace:
             self._anchors_fpn[k] = v
 
         self._num_anchors = dict(zip(self.fpn_keys, [anchors.shape[0] for anchors in self._anchors_fpn.values()]))
-        if self.ctx_id>=0:
-            self.nms = gpu_nms_wrapper(self.nms_threshold, self.ctx_id)
+        if use_gpu_nms:
+            self.nms = gpu_nms_wrapper(self.nms_threshold, 0)
         else:
             self.nms = cpu_nms_wrapper(self.nms_threshold)
         self.pixel_means = np.array(pixel_means, dtype=np.float32)

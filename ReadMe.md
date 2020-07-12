@@ -3,16 +3,28 @@ This repository contains a tensorflow2 reimplementation of the model presented i
 
 ![testing on a random internet selfie](retinaface_tf2_output.jpg)
 
-### Installation
-TODO
-### Inference
+## Installation
+Step 1) To install dependencies, if you have a GPU, run : 
+```
+pip install -r requirements-gpu.txt
+```
+If not, run : 
+```
+pip install -r requirements.txt
+```
+
+Step 2) Build the rcnn module by running : 
+```
+make
+```
+## Inference
 Download pretrained weights on [Dropbox](https://www.dropbox.com/s/g4f2lap9cyrdfw5/retinafaceweights.npy?dl=0) and save them in the data folder  
 Run  :
 ```angular2
 python test.py
 ```
 
-### Evaluate on WIDERFACE
+## Evaluate on WIDERFACE
 In order to verify the models accuracy on the WiderFace dataset:
 * Run the model on the dataset and generate text files as results
 ```angular2
@@ -24,18 +36,15 @@ cd ./WiderFace-Evaluation
 python setup.py build_ext --inplace
 python evaluation.py -p ./results_val/ -g ./ground_truth/
 ```
-### Caution
-This repository is a work in progress. Precision seems to be OK for the network with variable size input, however it runs only on cpu at the moment and is quite slow
 
 
-
-### TODO
+## TODO
 * ~~working, pretrained tf2 implementation of retinanet !~~
 * ~~Make variable input size network run on gpu~~
 * ~~Make nms run on gpu~~
 * Calculate accuracy on WIDERFACE
-* accelerate inference
+* Find better tf operations to accelerate inference
 
-### Aknowledgements
+## Aknowledgements
 This work is largely based on the original implementation by the amazing [insightface](https://github.com/deepinsight/insightface) team  
 Evaluation on widerface done with the [Widerface-Evaluation](https://github.com/wondervictor/WiderFace-Evaluation) repo

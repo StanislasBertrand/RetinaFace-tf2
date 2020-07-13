@@ -51,4 +51,14 @@ python evaluation.py -p ./results_val/ -g ./ground_truth/
 *****
 ## Aknowledgements
 This work is largely based on the original implementation by the amazing [insightface](https://github.com/deepinsight/insightface) team  
-Evaluation on widerface done with the [Widerface-Evaluation](https://github.com/wondervictor/WiderFace-Evaluation) repo
+Evaluation on widerface done with the [Widerface-Evaluation](https://github.com/wondervictor/WiderFace-Evaluation) repo  
+If you use this repo, please reference the original work :
+
+```  
+@inproceedings{Deng2020CVPR,
+title = {RetinaFace: Single-Shot Multi-Level Face Localisation in the Wild},
+author = {Deng, Jiankang and Guo, Jia and Ververas, Evangelos and Kotsia, Irene and Zafeiriou, Stefanos},
+booktitle = {CVPR},
+year = {2020}
+}
+```

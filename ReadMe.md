@@ -30,10 +30,10 @@ python test.py --weights_path="./data/retinafaceweights.npy" --sample_img="./sam
 ## Benchmark   
 mAP result values on the WIDERFACE validation dataset:  
 
-| Model  | Easy  | Medium  | Hard  |   |
-|---|---|---|---|---|
-|Original Mxnet implementation   | 96.5  | 95.6 | 90.4 |   |
-| Ours | 95.2  | 93.6  | 84.8  |   |
+| Model  | Easy  | Medium  | Hard  |
+|---|---|---|---|
+|Original Mxnet implementation   | 96.5  | 95.6 | 90.4 |
+| Ours | 95.2  | 93.6  | 84.8  |
 
 
 ## Evaluate on WIDERFACE

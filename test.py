@@ -8,27 +8,39 @@ import os
 flags.DEFINE_string('weights_path', './data/retinafaceweights.npy',
                     'network weights path')
 flags.DEFINE_string('sample_img', './sample-images/random_internet_selfie.jpg', 'image to test on')
+# flags.DEFINE_string('sample_img', '/home/bertrans/Downloads/WIDER_val/images/2--Demonstration/2_Demonstration_Demonstration_Or_Protest_2_687.jpg', 'image to test on')
 flags.DEFINE_string('save_destination', 'retinaface_tf2_output.jpg', "destination image")
 flags.DEFINE_float('det_thresh', 0.8, "detection threshold")
 flags.DEFINE_float('nms_thresh', 0.4, "nms threshold")
 flags.DEFINE_bool('use_gpu_nms', True, "whethere to use gpu for nms")
 
+
 def _main(_argv):
     detector = RetinaFace(FLAGS.weights_path, FLAGS.use_gpu_nms, FLAGS.nms_thresh)
     img = cv2.imread(FLAGS.sample_img)
-    faces, landmarks = detector.detect(img, FLAGS.det_thresh)
+    scales = [1024, 1980]
+    im_shape = img.shape
+    target_size = scales[0]
+    max_size = scales[1]
+    im_size_min = np.min(im_shape[0:2])
+    im_size_max = np.max(im_shape[0:2])
+    im_scale = float(target_size) / float(im_size_min)
+    if np.round(im_scale * im_size_max) > max_size:
+        im_scale = float(max_size) / float(im_size_max)
+    scales = [im_scale]
+    faces, landmarks = detector.detect(img, FLAGS.det_thresh, scales=scales)
     if faces is not None:
         print('found', faces.shape[0], 'faces')
         for i in range(faces.shape[0]):
             box = faces[i].astype(np.int)
-            color = (0,0,255)
+            color = (0, 0, 255)
             cv2.rectangle(img, (box[0], box[1]), (box[2], box[3]), color, 1)
             if landmarks is not None:
                 landmark5 = landmarks[i].astype(np.int)
                 for l in range(landmark5.shape[0]):
-                    color = (0,0,255)
-                    if l==0 or l==3:
-                        color = (0,255,0)
+                    color = (0, 0, 255)
+                    if l == 0 or l == 3:
+                        color = (0, 255, 0)
                     cv2.circle(img, (landmark5[l][0], landmark5[l][1]), 1, color, 1)
 
     cv2.imwrite(FLAGS.save_destination, img)

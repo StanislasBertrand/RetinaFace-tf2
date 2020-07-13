@@ -3,16 +3,15 @@ import numpy as np
 from absl import app, flags
 from absl.flags import FLAGS
 from retinaface import RetinaFace
-import os
+
 
 flags.DEFINE_string('weights_path', './data/retinafaceweights.npy',
                     'network weights path')
-flags.DEFINE_string('sample_img', './sample-images/random_internet_selfie.jpg', 'image to test on')
-# flags.DEFINE_string('sample_img', '/home/bertrans/Downloads/WIDER_val/images/2--Demonstration/2_Demonstration_Demonstration_Or_Protest_2_687.jpg', 'image to test on')
+flags.DEFINE_string('sample_img', './sample-images/WC_FR.jpeg', 'image to test on')
 flags.DEFINE_string('save_destination', 'retinaface_tf2_output.jpg', "destination image")
-flags.DEFINE_float('det_thresh', 0.8, "detection threshold")
+flags.DEFINE_float('det_thresh', 0.9, "detection threshold")
 flags.DEFINE_float('nms_thresh', 0.4, "nms threshold")
-flags.DEFINE_bool('use_gpu_nms', True, "whethere to use gpu for nms")
+flags.DEFINE_bool('use_gpu_nms', False, "whether to use gpu for nms")
 
 
 def _main(_argv):
@@ -34,7 +33,7 @@ def _main(_argv):
         for i in range(faces.shape[0]):
             box = faces[i].astype(np.int)
             color = (0, 0, 255)
-            cv2.rectangle(img, (box[0], box[1]), (box[2], box[3]), color, 1)
+            cv2.rectangle(img, (box[0], box[1]), (box[2], box[3]), color, 2)
             if landmarks is not None:
                 landmark5 = landmarks[i].astype(np.int)
                 for l in range(landmark5.shape[0]):

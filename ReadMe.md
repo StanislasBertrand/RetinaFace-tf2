@@ -1,10 +1,14 @@
-# [WIP] RetinaFace-tf2
-This repository contains a tensorflow2 reimplementation of the model presented in the [RetinaFace paper](https://arxiv.org/pdf/1905.00641.pdf)
+# RetinaFace-tf2
+RetinaFace (RetinaFace: Single-stage Dense Face Localisation in the Wild, published in 2019) reimplemented in Tensorflow 2.0, with pretrained weights available
 
+Original paper -> [arXiv](https://arxiv.org/pdf/1905.00641.pdf)  
+Original Mxnet implementation -> [Insightface](https://github.com/deepinsight/insightface/tree/master/RetinaFace)
+
+example output : 
 ![testing on a random internet selfie](retinaface_tf2_output.jpg)
 
 ## Installation
-Step 1) To install dependencies, if you have a GPU, run : 
+To install dependencies, if you have a GPU, run : 
 ```
 pip install -r requirements-gpu.txt
 ```
@@ -12,17 +16,25 @@ If not, run :
 ```
 pip install -r requirements.txt
 ```
-
-Step 2) Build the rcnn module by running : 
+Then build the rcnn module by running : 
 ```
 make
 ```
-## Inference
+## Test on an image
 Download pretrained weights on [Dropbox](https://www.dropbox.com/s/g4f2lap9cyrdfw5/retinafaceweights.npy?dl=0) and save them in the data folder  
 Run  :
 ```angular2
-python test.py
+python test.py --weights_path="./data/retinafaceweights.npy" --sample_img="./sample-images/WC_FR.jpeg"
 ```
+
+## Benchmark
+Results of this implementation on the WIDERFACE validation dataset:    
+
+| Model  | Easy  | Medium  | Hard  |
+|---|---|---|---|---|
+| Original Mxnet Implementation  | 96.5  | 95.6  | 90.4  |
+| Ours  | 95.2  | 93.6  | 84.8  |
+
 
 ## Evaluate on WIDERFACE
 In order to verify the models accuracy on the WiderFace dataset:
@@ -37,13 +49,6 @@ python setup.py build_ext --inplace
 python evaluation.py -p ./results_val/ -g ./ground_truth/
 ```
 
-
-## TODO
-* ~~working, pretrained tf2 implementation of retinanet !~~
-* ~~Make variable input size network run on gpu~~
-* ~~Make nms run on gpu~~
-* Calculate accuracy on WIDERFACE
-* Find better tf operations to accelerate inference
 
 ## Aknowledgements
 This work is largely based on the original implementation by the amazing [insightface](https://github.com/deepinsight/insightface) team  

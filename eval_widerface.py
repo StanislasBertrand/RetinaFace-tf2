@@ -5,16 +5,15 @@ from absl import app, flags, logging
 from absl.flags import FLAGS
 from retinaface import RetinaFace
 
-
 flags.DEFINE_string('weights_path', './data/retinafaceweights.npy',
                     'network weights path')
 flags.DEFINE_string('widerface_data_dir', '/home/bertrans/Downloads/WIDER_val/images/', 'data directory of widerface test set')
-flags.DEFINE_string('save_folder', './WiderFace-Evaluation/results_val08/',
+flags.DEFINE_string('save_folder', './WiderFace-Evaluation/results_val/',
                     'folder path to save evaluate results')
 
 
 def _main(_argv):
-    detector = RetinaFace(FLAGS.weights_path, use_gpu_nms = True)
+    detector = RetinaFace(FLAGS.weights_path, use_gpu_nms = False)
     if not os.path.isdir(FLAGS.save_folder):
         os.mkdir(FLAGS.save_folder)
     subdirs = [x[0] for x in os.walk(FLAGS.widerface_data_dir)][1:]
@@ -25,6 +24,8 @@ def _main(_argv):
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
         for file in os.listdir(subdir):
+            if os.path.isfile(os.path.join(output_dir, file.replace("jpg", "txt"))):
+                continue
             img = cv2.imread(os.path.join(subdir, file))
             scales = [1024, 1980]
             im_shape = img.shape
@@ -37,7 +38,7 @@ def _main(_argv):
                 im_scale = float(max_size) / float(im_size_max)
             scales = [im_scale]
 
-            faces, ldmks = detector.detect(img, 0.8, scales)
+            faces, ldmks = detector.detect(img, 0.1, scales)
             with open(os.path.join(output_dir, file.replace("jpg", "txt")), "w+") as f:
                 f.write(file.split("/")[-1].split(".")[0] + "\n")
                 f.write(str(len(faces)) + "\n")

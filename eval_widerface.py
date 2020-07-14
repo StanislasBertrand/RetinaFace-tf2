@@ -36,9 +36,8 @@ def _main(_argv):
             im_scale = float(target_size) / float(im_size_min)
             if np.round(im_scale * im_size_max) > max_size:
                 im_scale = float(max_size) / float(im_size_max)
-            scales = [im_scale]
 
-            faces, ldmks = detector.detect(img, 0.1, scales)
+            faces, ldmks = detector.detect(img, 0.01, im_scale)
             with open(os.path.join(output_dir, file.replace("jpg", "txt")), "w+") as f:
                 f.write(file.split("/")[-1].split(".")[0] + "\n")
                 f.write(str(len(faces)) + "\n")

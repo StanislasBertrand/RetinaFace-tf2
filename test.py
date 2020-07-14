@@ -4,14 +4,13 @@ from absl import app, flags
 from absl.flags import FLAGS
 from retinaface import RetinaFace
 
-
 flags.DEFINE_string('weights_path', './data/retinafaceweights.npy',
                     'network weights path')
-flags.DEFINE_string('sample_img', './sample-images/WC_FR.jpeg', 'image to test on')
+flags.DEFINE_string('sample_img', './sample-images/random_internet_selfie.jpg', 'image to test on')
 flags.DEFINE_string('save_destination', 'retinaface_tf2_output.jpg', "destination image")
 flags.DEFINE_float('det_thresh', 0.9, "detection threshold")
 flags.DEFINE_float('nms_thresh', 0.4, "nms threshold")
-flags.DEFINE_bool('use_gpu_nms', False, "whether to use gpu for nms")
+flags.DEFINE_bool('use_gpu_nms', True, "whether to use gpu for nms")
 
 
 def _main(_argv):
@@ -26,8 +25,7 @@ def _main(_argv):
     im_scale = float(target_size) / float(im_size_min)
     if np.round(im_scale * im_size_max) > max_size:
         im_scale = float(max_size) / float(im_size_max)
-    scales = [im_scale]
-    faces, landmarks = detector.detect(img, FLAGS.det_thresh, scales=scales)
+    faces, landmarks = detector.detect(img, FLAGS.det_thresh, im_scale=im_scale)
     if faces is not None:
         print('found', faces.shape[0], 'faces')
         for i in range(faces.shape[0]):

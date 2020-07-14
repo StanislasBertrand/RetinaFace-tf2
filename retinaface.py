@@ -5,6 +5,7 @@ from rcnn.processing.bbox_transform import clip_boxes
 from rcnn.processing.generate_anchor import generate_anchors_fpn, anchors_plane
 from rcnn.processing.nms import gpu_nms_wrapper, cpu_nms_wrapper
 from networks.retinaface_network import RetinaFaceNetwork
+import time
 
 class RetinaFace:
     def __init__(self, model_weights, use_gpu_nms=True, nms=0.4, decay4=0.5):
@@ -46,76 +47,75 @@ class RetinaFace:
         self.model = RetinaFaceNetwork(model_weights).model
 
 
-    def detect(self, img, threshold=0.5, scales = [1.0]):
+    def detect(self, img, threshold=0.5, im_scale = 1.0):
         proposals_list = []
         scores_list = []
         landmarks_list = []
-        for im_scale in scales:
-            if im_scale != 1.0:
-                img = cv2.resize(img, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
-            img = img.astype(np.float32)
-            im_info = [img.shape[0], img.shape[1]]
-            im_tensor = np.zeros((1, 3, img.shape[0], img.shape[1]))
-            for i in range(3):
-                im_tensor[0, i, :, :] = (img[:, :, 2 - i] / self.pixel_scale - self.pixel_means[2 - i]) / self.pixel_stds[
-                    2 - i]
-            net_out = self.model.predict(im_tensor.transpose(0, 2, 3, 1))
-            net_out_reshaped = []
-            for elt in net_out:
-                net_out_reshaped.append(elt.transpose(0, 3, 1, 2))
-            net_out = net_out_reshaped
 
-            sym_idx = 0
+        if im_scale != 1.0:
+            img = cv2.resize(img, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
+        img = img.astype(np.float32)
+        im_info = [img.shape[0], img.shape[1]]
+        im_tensor = np.zeros((1, 3, img.shape[0], img.shape[1]))
+        for i in range(3):
+            im_tensor[0, i, :, :] = (img[:, :, 2 - i] / self.pixel_scale - self.pixel_means[2 - i]) / self.pixel_stds[
+                2 - i]
+        net_out = self.model.predict(im_tensor.transpose(0, 2, 3, 1))
+        net_out_reshaped = []
+        for elt in net_out:
+            net_out_reshaped.append(elt.transpose(0, 3, 1, 2))
+        net_out = net_out_reshaped
+        sym_idx = 0
 
-            for _idx,s in enumerate(self._feat_stride_fpn):
-                _key = 'stride%s'%s
-                stride = int(s)
-                scores = net_out[sym_idx]
-                scores = scores[:, self._num_anchors['stride%s'%s]:, :, :]
+        for _idx,s in enumerate(self._feat_stride_fpn):
+            _key = 'stride%s'%s
+            stride = int(s)
+            scores = net_out[sym_idx]
+            scores = scores[:, self._num_anchors['stride%s'%s]:, :, :]
 
-                bbox_deltas = net_out[sym_idx + 1]
-                height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
+            bbox_deltas = net_out[sym_idx + 1]
+            height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
 
-                A = self._num_anchors['stride%s'%s]
-                K = height * width
-                anchors_fpn = self._anchors_fpn['stride%s'%s]
-                anchors = anchors_plane(height, width, stride, anchors_fpn)
-                anchors = anchors.reshape((K * A, 4))
-                scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
+            A = self._num_anchors['stride%s'%s]
+            K = height * width
+            anchors_fpn = self._anchors_fpn['stride%s'%s]
+            anchors = anchors_plane(height, width, stride, anchors_fpn)
+            anchors = anchors.reshape((K * A, 4))
+            scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
 
-                bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1))
-                bbox_pred_len = bbox_deltas.shape[3]//A
-                bbox_deltas = bbox_deltas.reshape((-1, bbox_pred_len))
-                bbox_deltas[:, 0::4] = bbox_deltas[:,0::4] * self.bbox_stds[0]
-                bbox_deltas[:, 1::4] = bbox_deltas[:,1::4] * self.bbox_stds[1]
-                bbox_deltas[:, 2::4] = bbox_deltas[:,2::4] * self.bbox_stds[2]
-                bbox_deltas[:, 3::4] = bbox_deltas[:,3::4] * self.bbox_stds[3]
-                proposals = self.bbox_pred(anchors, bbox_deltas)
+            bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1))
+            bbox_pred_len = bbox_deltas.shape[3]//A
+            bbox_deltas = bbox_deltas.reshape((-1, bbox_pred_len))
+            bbox_deltas[:, 0::4] = bbox_deltas[:,0::4] * self.bbox_stds[0]
+            bbox_deltas[:, 1::4] = bbox_deltas[:,1::4] * self.bbox_stds[1]
+            bbox_deltas[:, 2::4] = bbox_deltas[:,2::4] * self.bbox_stds[2]
+            bbox_deltas[:, 3::4] = bbox_deltas[:,3::4] * self.bbox_stds[3]
+            proposals = self.bbox_pred(anchors, bbox_deltas)
 
-                proposals = clip_boxes(proposals, im_info[:2])
+            proposals = clip_boxes(proposals, im_info[:2])
 
 
-                if stride==4 and self.decay4<1.0:
-                    scores *= self.decay4
+            if stride==4 and self.decay4<1.0:
+                scores *= self.decay4
 
-                scores_ravel = scores.ravel()
-                order = np.where(scores_ravel>=threshold)[0]
-                proposals = proposals[order, :]
-                scores = scores[order]
+            scores_ravel = scores.ravel()
+            order = np.where(scores_ravel>=threshold)[0]
+            proposals = proposals[order, :]
+            scores = scores[order]
 
-                proposals[:, 0:4] /= im_scale
-                proposals_list.append(proposals)
-                scores_list.append(scores)
+            proposals[:, 0:4] /= im_scale
+            proposals_list.append(proposals)
+            scores_list.append(scores)
 
-                landmark_deltas = net_out[sym_idx + 2]
-                landmark_pred_len = landmark_deltas.shape[1]//A
-                landmark_deltas = landmark_deltas.transpose((0, 2, 3, 1)).reshape((-1, 5, landmark_pred_len//5))
-                landmarks = self.landmark_pred(anchors, landmark_deltas)
-                landmarks = landmarks[order, :]
+            landmark_deltas = net_out[sym_idx + 2]
+            landmark_pred_len = landmark_deltas.shape[1]//A
+            landmark_deltas = landmark_deltas.transpose((0, 2, 3, 1)).reshape((-1, 5, landmark_pred_len//5))
+            landmarks = self.landmark_pred(anchors, landmark_deltas)
+            landmarks = landmarks[order, :]
 
-                landmarks[:, :, 0:2] /= im_scale
-                landmarks_list.append(landmarks)
-                sym_idx += 3
+            landmarks[:, :, 0:2] /= im_scale
+            landmarks_list.append(landmarks)
+            sym_idx += 3
 
         proposals = np.vstack(proposals_list)
         if proposals.shape[0]==0:

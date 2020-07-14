@@ -13,9 +13,6 @@ class RetinaFace:
         self.nms_threshold = nms
         self.fpn_keys = []
         self.anchor_cfg = None
-        pixel_means=[0.0, 0.0, 0.0]
-        pixel_stds=[1.0, 1.0, 1.0]
-        pixel_scale = 1.0
         self.preprocess = False
         _ratio = (1.,)
         self._feat_stride_fpn = [32, 16, 8]
@@ -30,20 +27,18 @@ class RetinaFace:
         for k in self._anchors_fpn:
             v = self._anchors_fpn[k].astype(np.float32)
             self._anchors_fpn[k] = v
-
         self._num_anchors = dict(zip(self.fpn_keys, [anchors.shape[0] for anchors in self._anchors_fpn.values()]))
         if use_gpu_nms:
             self.nms = gpu_nms_wrapper(self.nms_threshold, 0)
         else:
             self.nms = cpu_nms_wrapper(self.nms_threshold)
+        pixel_means=[0.0, 0.0, 0.0]
+        pixel_stds=[1.0, 1.0, 1.0]
+        pixel_scale = 1.0
         self.pixel_means = np.array(pixel_means, dtype=np.float32)
         self.pixel_stds = np.array(pixel_stds, dtype=np.float32)
         self.pixel_scale = float(pixel_scale)
-        self.use_landmarks = True
-        self.cascade = 0
         self.bbox_stds = [1.0, 1.0, 1.0, 1.0]
-
-
         self.model = RetinaFaceNetwork(model_weights).model
 
 
@@ -138,40 +133,6 @@ class RetinaFace:
 
         return det, landmarks
 
-    @staticmethod
-    def _filter_boxes(boxes, min_size):
-        """ Remove all boxes with any side smaller than min_size """
-        ws = boxes[:, 2] - boxes[:, 0] + 1
-        hs = boxes[:, 3] - boxes[:, 1] + 1
-        keep = np.where((ws >= min_size) & (hs >= min_size))[0]
-        return keep
-
-    @staticmethod
-    def _filter_boxes2(boxes, max_size, min_size):
-        """ Remove all boxes with any side smaller than min_size """
-        ws = boxes[:, 2] - boxes[:, 0] + 1
-        hs = boxes[:, 3] - boxes[:, 1] + 1
-        if max_size>0:
-            keep = np.where( np.minimum(ws, hs)<max_size )[0]
-        elif min_size>0:
-            keep = np.where( np.maximum(ws, hs)>min_size )[0]
-        return keep
-
-    @staticmethod
-    def _clip_pad(tensor, pad_shape):
-        """
-        Clip boxes of the pad area.
-        :param tensor: [n, c, H, W]
-        :param pad_shape: [h, w]
-        :return: [n, c, h, w]
-        """
-        H, W = tensor.shape[2:]
-        h, w = pad_shape
-
-        if h < H or w < W:
-            tensor = tensor[:, :, :h, :w].copy()
-
-        return tensor
 
     @staticmethod
     def bbox_pred(boxes, box_deltas):
@@ -216,6 +177,7 @@ class RetinaFace:
 
         return pred_boxes
 
+
     @staticmethod
     def landmark_pred(boxes, landmark_deltas):
         if boxes.shape[0] == 0:
@@ -230,46 +192,3 @@ class RetinaFace:
             pred[:,i,0] = landmark_deltas[:,i,0]*widths + ctr_x
             pred[:,i,1] = landmark_deltas[:,i,1]*heights + ctr_y
         return pred
-
-
-    def bbox_vote(self, det):
-        if det.shape[0] == 0:
-            return np.zeros( (0, 5) )
-        dets = None
-        while det.shape[0] > 0:
-            if dets is not None and dets.shape[0]>=750:
-                break
-            # IOU
-            area = (det[:, 2] - det[:, 0] + 1) * (det[:, 3] - det[:, 1] + 1)
-            xx1 = np.maximum(det[0, 0], det[:, 0])
-            yy1 = np.maximum(det[0, 1], det[:, 1])
-            xx2 = np.minimum(det[0, 2], det[:, 2])
-            yy2 = np.minimum(det[0, 3], det[:, 3])
-            w = np.maximum(0.0, xx2 - xx1 + 1)
-            h = np.maximum(0.0, yy2 - yy1 + 1)
-            inter = w * h
-            o = inter / (area[0] + area[:] - inter)
-
-            # nms
-            merge_index = np.where(o >= self.nms_threshold)[0]
-            det_accu = det[merge_index, :]
-            det = np.delete(det, merge_index, 0)
-            if merge_index.shape[0] <= 1:
-                if det.shape[0] == 0:
-                    try:
-                        dets = np.row_stack((dets, det_accu))
-                    except:
-                        dets = det_accu
-                        continue
-            det_accu[:, 0:4] = det_accu[:, 0:4] * np.tile(det_accu[:, -1:], (1, 4))
-            max_score = np.max(det_accu[:, 4])
-            det_accu_sum = np.zeros((1, 5))
-            det_accu_sum[:, 0:4] = np.sum(det_accu[:, 0:4],
-                                        axis=0) / np.sum(det_accu[:, -1:])
-            det_accu_sum[:, 4] = max_score
-            if dets is None:
-                dets = det_accu_sum
-            else:
-                dets = np.row_stack((dets, det_accu_sum))
-        dets = dets[0:750, :]
-        return dets

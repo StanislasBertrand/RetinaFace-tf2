@@ -34,7 +34,7 @@ mAP result values on the WIDERFACE validation dataset:
 | Model  | Easy  | Medium  | Hard  |
 |---|---|---|---|
 |Original Mxnet implementation   | 96.5  | 95.6 | 90.4 |
-| Ours | 95.2  | 93.6  | 84.8  |
+| Ours | 95.6  | 94.6  | 88.5  |
 *****
 ## Evaluate on WIDERFACE
 In order to verify the models accuracy on the WiderFace dataset:

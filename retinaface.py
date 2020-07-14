@@ -39,16 +39,25 @@ class RetinaFace:
         self.pixel_stds = np.array(pixel_stds, dtype=np.float32)
         self.pixel_scale = float(pixel_scale)
         self.bbox_stds = [1.0, 1.0, 1.0, 1.0]
+        self.scales = [1024, 1980]
         self.model = RetinaFaceNetwork(model_weights).model
 
-
-    def detect(self, img, threshold=0.5, im_scale = 1.0):
+    def detect(self, img, threshold=0.5):
         proposals_list = []
         scores_list = []
         landmarks_list = []
 
+        im_shape = img.shape
+        target_size = self.scales[0]
+        max_size = self.scales[1]
+        im_size_min = np.min(im_shape[0:2])
+        im_size_max = np.max(im_shape[0:2])
+        im_scale = float(target_size) / float(im_size_min)
+        if np.round(im_scale * im_size_max) > max_size:
+            im_scale = float(max_size) / float(im_size_max)
         if im_scale != 1.0:
             img = cv2.resize(img, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
+        
         img = img.astype(np.float32)
         im_info = [img.shape[0], img.shape[1]]
         im_tensor = np.zeros((1, 3, img.shape[0], img.shape[1]))

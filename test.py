@@ -16,16 +16,7 @@ flags.DEFINE_bool('use_gpu_nms', True, "whether to use gpu for nms")
 def _main(_argv):
     detector = RetinaFace(FLAGS.weights_path, FLAGS.use_gpu_nms, FLAGS.nms_thresh)
     img = cv2.imread(FLAGS.sample_img)
-    scales = [1024, 1980]
-    im_shape = img.shape
-    target_size = scales[0]
-    max_size = scales[1]
-    im_size_min = np.min(im_shape[0:2])
-    im_size_max = np.max(im_shape[0:2])
-    im_scale = float(target_size) / float(im_size_min)
-    if np.round(im_scale * im_size_max) > max_size:
-        im_scale = float(max_size) / float(im_size_max)
-    faces, landmarks = detector.detect(img, FLAGS.det_thresh, im_scale=im_scale)
+    faces, landmarks = detector.detect(img, FLAGS.det_thresh)
     if faces is not None:
         print('found', faces.shape[0], 'faces')
         for i in range(faces.shape[0]):

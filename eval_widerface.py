@@ -27,17 +27,7 @@ def _main(_argv):
             if os.path.isfile(os.path.join(output_dir, file.replace("jpg", "txt"))):
                 continue
             img = cv2.imread(os.path.join(subdir, file))
-            scales = [1024, 1980]
-            im_shape = img.shape
-            target_size = scales[0]
-            max_size = scales[1]
-            im_size_min = np.min(im_shape[0:2])
-            im_size_max = np.max(im_shape[0:2])
-            im_scale = float(target_size) / float(im_size_min)
-            if np.round(im_scale * im_size_max) > max_size:
-                im_scale = float(max_size) / float(im_size_max)
-
-            faces, ldmks = detector.detect(img, 0.01, im_scale)
+            faces, ldmks = detector.detect(img, 0.01)
             with open(os.path.join(output_dir, file.replace("jpg", "txt")), "w+") as f:
                 f.write(file.split("/")[-1].split(".")[0] + "\n")
                 f.write(str(len(faces)) + "\n")

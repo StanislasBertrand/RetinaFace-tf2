@@ -21,11 +21,11 @@ Then build the rcnn module by running :
 make
 ```
 *****
-## Test on an image
+## Detect faces on your image image
 Download pretrained weights on [Dropbox](https://www.dropbox.com/s/g4f2lap9cyrdfw5/retinafaceweights.npy?dl=0) and save them in the data folder  
 Run  :
 ```angular2
-python test.py --weights_path="./data/retinafaceweights.npy" --sample_img="./sample-images/WC_FR.jpeg"
+python detect.py --weights_path="./data/retinafaceweights.npy" --sample_img="./sample-images/WC_FR.jpeg"
 ```
 *****
 ## Benchmark   
@@ -49,7 +49,7 @@ python setup.py build_ext --inplace
 python evaluation.py -p ./results_val/ -g ./ground_truth/
 ```
 *****
-## Aknowledgements
+## Acknowledgements
 This work is largely based on the original implementation by the amazing [insightface](https://github.com/deepinsight/insightface) team  
 Evaluation on widerface done with the [Widerface-Evaluation](https://github.com/wondervictor/WiderFace-Evaluation) repo  
 If you use this repo, please reference the original work :

@@ -21,7 +21,7 @@ Then build the rcnn module by running :
 make
 ```
 *****
-## Detect faces on your image image
+## Detect faces on an image
 Download pretrained weights on [Dropbox](https://www.dropbox.com/s/g4f2lap9cyrdfw5/retinafaceweights.npy?dl=0) and save them in the data folder  
 Run  :
 ```angular2

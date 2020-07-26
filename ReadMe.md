@@ -7,7 +7,7 @@ Original Mxnet implementation -> [Insightface](https://github.com/deepinsight/in
 example output : 
 ![testing on a random internet selfie](retinaface_tf2_output.jpg)
 *****
-## Installation
+## INSTALLATION
 To install dependencies, if you have a GPU, run : 
 ```
 pip install -r requirements-gpu.txt
@@ -20,23 +20,30 @@ Then build the rcnn module by running :
 ```
 make
 ```
-*****
-## Detect faces on an image
+## USAGE
 Download pretrained weights on [Dropbox](https://www.dropbox.com/s/g4f2lap9cyrdfw5/retinafaceweights.npy?dl=0) and save them in the data folder  
 Run  :
 ```angular2
 python detect.py --weights_path="./data/retinafaceweights.npy" --sample_img="./sample-images/WC_FR.jpeg"
 ```
-*****
-## Benchmark   
+Python usage :
+```python
+from retinaface import RetinaFace
+import cv2
+
+detector = RetinaFace("./data/retinafaceweights.npy", False, 0.4)
+img = cv2.imread("./sample-images/WC_FR.jpeg")
+faces, landmarks = detector.detect(img, 0.9)
+```
+## BENCHMARK   
 mAP result values on the WIDERFACE validation dataset:  
 
 | Model  | Easy  | Medium  | Hard  |
 |---|---|---|---|
 |Original Mxnet implementation   | 96.5  | 95.6 | 90.4 |
 | Ours | 95.6  | 94.6  | 88.5  |
-*****
-## Evaluate on WIDERFACE
+
+## EVALUATE ON WIDERFACE
 In order to verify the models accuracy on the WiderFace dataset:
 * Run the model on the dataset and generate text files as results
 ```angular2
@@ -48,8 +55,8 @@ cd ./WiderFace-Evaluation
 python setup.py build_ext --inplace
 python evaluation.py -p ./results_val/ -g ./ground_truth/
 ```
-*****
-## Acknowledgements
+
+## ACKNOWLEDGEMENTS
 This work is largely based on the original implementation by the amazing [insightface](https://github.com/deepinsight/insightface) team  
 Evaluation on widerface done with the [Widerface-Evaluation](https://github.com/wondervictor/WiderFace-Evaluation) repo  
 If you use this repo, please reference the original work :

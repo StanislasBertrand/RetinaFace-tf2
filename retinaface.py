@@ -5,7 +5,6 @@ from rcnn.processing.bbox_transform import clip_boxes
 from rcnn.processing.generate_anchor import generate_anchors_fpn, anchors_plane
 from rcnn.processing.nms import gpu_nms_wrapper, cpu_nms_wrapper
 from networks.retinaface_network import RetinaFaceNetwork
-import time
 
 class RetinaFace:
     def __init__(self, model_weights, use_gpu_nms=True, nms=0.4, decay4=0.5):
@@ -43,6 +42,12 @@ class RetinaFace:
         self.model = RetinaFaceNetwork(model_weights).model
 
     def detect(self, img, threshold=0.5):
+        """
+        Detect all the faces and landmarks in an image
+        :param img: input image
+        :param threshold: detection threshold
+        :return: tuple faces, landmarks
+        """
         proposals_list = []
         scores_list = []
         landmarks_list = []

@@ -1,5 +1,7 @@
 from __future__ import print_function
 import numpy as np
+import tensorflow as tf
+
 import cv2
 from rcnn.processing.bbox_transform import clip_boxes
 from rcnn.processing.generate_anchor import generate_anchors_fpn, anchors_plane
@@ -39,7 +41,59 @@ class RetinaFace:
         self.pixel_scale = float(pixel_scale)
         self.bbox_stds = [1.0, 1.0, 1.0, 1.0]
         self.scales = [1024, 1980]
-        self.model = RetinaFaceNetwork(model_weights).model
+        self.model = tf.function(
+            RetinaFaceNetwork(model_weights).model,
+            input_signature=(tf.TensorSpec(shape=[None, None, None, 3], dtype=np.float32),)
+        )
+
+    def _resize_image(self, img):
+        img_w, img_h = img.shape[0:2]
+        target_size = self.scales[0]
+        max_size = self.scales[1]
+
+        if img_w > img_h:
+            im_size_min, im_size_max = img_h, img_w
+        else:
+            im_size_min, im_size_max = img_w, img_h
+
+        im_scale = target_size / float(im_size_min)
+
+        if np.round(im_scale * im_size_max) > max_size:
+            im_scale = max_size / float(im_size_max)
+
+        if im_scale != 1.0:
+            img = cv2.resize(
+                img,
+                None,
+                None,
+                fx=im_scale,
+                fy=im_scale,
+                interpolation=cv2.INTER_LINEAR
+            )
+
+        return img, im_scale
+
+    def _preprocess_image(self, img):
+        """
+        Preprocess an image applying resizing, scaling and channel conversion
+        :param img: np.ndarray
+            A BGR image to preprocess with shape (H, W, C)
+        :return: Tuple[np.ndarray, Tuple[int], float]
+            A tuple that contains 3 elements:
+            * The preprocessed image with shape (1, H, W, C).
+              This image has now RBG channels' format
+            * The image resized height and width
+            * The resized scale
+        """
+        img, im_scale = self._resize_image(img)
+        img = img.astype(np.float32)
+        im_tensor = np.zeros((1, img.shape[0], img.shape[1], img.shape[2]), dtype=np.float32)
+
+        # Make image scaling + BGR2RGB conversion + transpose (N,H,W,C) to (N,C,H,W)
+        for i in range(3):
+            im_tensor[0, :, :, i] = (img[:, :, 2 - i] / self.pixel_scale - self.pixel_means[2 - i]) / self.pixel_stds[2 - i]
+
+        return im_tensor, img.shape[0:2], im_scale
 
     def detect(self, img, threshold=0.5):
         """
@@ -51,48 +105,27 @@ class RetinaFace:
         proposals_list = []
         scores_list = []
         landmarks_list = []
-
-        im_shape = img.shape
-        target_size = self.scales[0]
-        max_size = self.scales[1]
-        im_size_min = np.min(im_shape[0:2])
-        im_size_max = np.max(im_shape[0:2])
-        im_scale = float(target_size) / float(im_size_min)
-        if np.round(im_scale * im_size_max) > max_size:
-            im_scale = float(max_size) / float(im_size_max)
-        if im_scale != 1.0:
-            img = cv2.resize(img, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
-        
-        img = img.astype(np.float32)
-        im_info = [img.shape[0], img.shape[1]]
-        im_tensor = np.zeros((1, 3, img.shape[0], img.shape[1]))
-        for i in range(3):
-            im_tensor[0, i, :, :] = (img[:, :, 2 - i] / self.pixel_scale - self.pixel_means[2 - i]) / self.pixel_stds[
-                2 - i]
-        net_out = self.model.predict(im_tensor.transpose(0, 2, 3, 1))
-        net_out_reshaped = []
-        for elt in net_out:
-            net_out_reshaped.append(elt.transpose(0, 3, 1, 2))
-        net_out = net_out_reshaped
+        im_tensor, im_info, im_scale = self._preprocess_image(img)
+        net_out = self.model(im_tensor)
+        net_out = [elt.numpy() for elt in net_out]
         sym_idx = 0
 
-        for _idx,s in enumerate(self._feat_stride_fpn):
+        for _idx, s in enumerate(self._feat_stride_fpn):
             _key = 'stride%s'%s
-            stride = int(s)
             scores = net_out[sym_idx]
-            scores = scores[:, self._num_anchors['stride%s'%s]:, :, :]
+            scores = scores[:, :, :, self._num_anchors['stride%s'%s]:]
 
             bbox_deltas = net_out[sym_idx + 1]
-            height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
+            height, width = bbox_deltas.shape[1], bbox_deltas.shape[2]
 
             A = self._num_anchors['stride%s'%s]
             K = height * width
             anchors_fpn = self._anchors_fpn['stride%s'%s]
-            anchors = anchors_plane(height, width, stride, anchors_fpn)
+            anchors = anchors_plane(height, width, s, anchors_fpn)
             anchors = anchors.reshape((K * A, 4))
-            scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
+            scores = scores.reshape((-1, 1))
 
-            bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1))
+            bbox_deltas = bbox_deltas
             bbox_pred_len = bbox_deltas.shape[3]//A
             bbox_deltas = bbox_deltas.reshape((-1, bbox_pred_len))
             bbox_deltas[:, 0::4] = bbox_deltas[:,0::4] * self.bbox_stds[0]
@@ -104,7 +137,7 @@ class RetinaFace:
             proposals = clip_boxes(proposals, im_info[:2])
 
 
-            if stride==4 and self.decay4<1.0:
+            if s==4 and self.decay4<1.0:
                 scores *= self.decay4
 
             scores_ravel = scores.ravel()
@@ -117,8 +150,8 @@ class RetinaFace:
             scores_list.append(scores)
 
             landmark_deltas = net_out[sym_idx + 2]
-            landmark_pred_len = landmark_deltas.shape[1]//A
-            landmark_deltas = landmark_deltas.transpose((0, 2, 3, 1)).reshape((-1, 5, landmark_pred_len//5))
+            landmark_pred_len = landmark_deltas.shape[3]//A
+            landmark_deltas = landmark_deltas.reshape((-1, 5, landmark_pred_len//5))
             landmarks = self.landmark_pred(anchors, landmark_deltas)
             landmarks = landmarks[order, :]
 
@@ -146,7 +179,6 @@ class RetinaFace:
         landmarks = landmarks[keep]
 
         return det, landmarks
-
 
     @staticmethod
     def bbox_pred(boxes, box_deltas):

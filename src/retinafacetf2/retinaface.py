@@ -9,7 +9,7 @@ from .rcnn.processing.nms import gpu_nms_wrapper, cpu_nms_wrapper
 from .networks.retinaface_network import RetinaFaceNetwork
 
 class RetinaFace:
-    def __init__(self, model_weights, use_gpu_nms=True, nms=0.4, decay4=0.5):
+    def __init__(self, model_weights, use_gpu_nms=True, nms=0.4):
         self.nms_threshold = nms
         self.fpn_keys = []
         self.anchor_cfg = None
@@ -133,6 +133,7 @@ class RetinaFace:
             proposals = self.bbox_pred(anchors, bbox_deltas)
 
             proposals = clip_boxes(proposals, im_info[:2])
+
 
 
             if s==4:

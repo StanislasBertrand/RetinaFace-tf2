@@ -101,9 +101,7 @@ def batch_normalization(input_tensor, variance_epsilon, name):
     """
     return tf.keras.layers.BatchNormalization(epsilon=variance_epsilon, name=name, trainable=False)(input_tensor)
 
-# @staticmethod
-# def crop(input_tensor, name):
-#     return tf.keras.layers.Cropping2D(cropping=((1, 0), (1, 0)), name=name)(input_tensor)
+
 def crop(input_tensor, obj_shape_tensor, name):
     """
     crops tensor input_tensor into the shape of tensor obj_shape_tensor

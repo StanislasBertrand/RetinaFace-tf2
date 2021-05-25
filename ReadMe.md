@@ -19,14 +19,11 @@ example output :
 *****
 <a name="Installation"></a>
 ## INSTALLATION
-To install dependencies, if you have a GPU, run : 
-```
-pip install -r requirements-gpu.txt
-```
-If not, run : 
+To install dependencies, run : 
 ```
 pip install -r requirements.txt
 ```
+
 Then build the rcnn module by running : 
 ```
 make

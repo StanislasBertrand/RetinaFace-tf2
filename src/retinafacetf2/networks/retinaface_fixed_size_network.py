@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 from .network_utils import (
     load_weights,
     load_weights_to_network,

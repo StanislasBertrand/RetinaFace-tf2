@@ -37,7 +37,7 @@ python detect.py --weights_path="./data/retinafaceweights.npy" --sample_img="./s
 ```
 Python usage :
 ```python
-from retinaface import RetinaFace
+from src.retinafacetf2.retinaface import RetinaFace
 import cv2
 
 detector = RetinaFace("./data/retinafaceweights.npy", False, 0.4)

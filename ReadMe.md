@@ -32,14 +32,14 @@ make
 ## USAGE
 Run  :
 ```angular2
-python detect.py --weights_path="./data/retinafaceweights.npy" --sample_img="./sample-images/WC_FR.jpeg"
+python detect.py --sample_img="./sample-images/WC_FR.jpeg"
 ```
 Python usage :
 ```python
 from src.retinafacetf2.retinaface import RetinaFace
 import cv2
 
-detector = RetinaFace("./data/retinafaceweights.npy", False, 0.4)
+detector = RetinaFace(False, 0.4)
 img = cv2.imread("./sample-images/WC_FR.jpeg")
 faces, landmarks = detector.detect(img, 0.9)
 ```

@@ -7,9 +7,11 @@ from .rcnn.processing.bbox_transform import clip_boxes
 from .rcnn.processing.generate_anchor import generate_anchors_fpn, anchors_plane
 from .rcnn.processing.nms import gpu_nms_wrapper, cpu_nms_wrapper
 from .networks.retinaface_network import RetinaFaceNetwork
+from .utils.file_utils import *
 
 class RetinaFace:
     def __init__(self, model_weights, use_gpu_nms=True, nms=0.4):
+        self.model_weights = cached_path(LINKS["retinaface_weights"])
         self.nms_threshold = nms
         self.fpn_keys = []
         self.anchor_cfg = None
@@ -40,7 +42,7 @@ class RetinaFace:
         self.bbox_stds = [1.0, 1.0, 1.0, 1.0]
         self.scales = [1024, 1980]
         self.model = tf.function(
-            RetinaFaceNetwork(model_weights).model,
+            RetinaFaceNetwork(self.model_weights).model,
             input_signature=(tf.TensorSpec(shape=[None, None, None, 3], dtype=np.float32),)
         )
 

@@ -10,7 +10,7 @@ from .networks.retinaface_network import RetinaFaceNetwork
 from .utils.file_utils import *
 
 class RetinaFace:
-    def __init__(self, model_weights, use_gpu_nms=True, nms=0.4):
+    def __init__(self, use_gpu_nms=True, nms=0.4):
         self.model_weights = cached_path(LINKS["retinaface_weights"])
         self.nms_threshold = nms
         self.fpn_keys = []

@@ -4,8 +4,6 @@ from absl import app, flags
 from absl.flags import FLAGS
 from src.retinafacetf2.retinaface import RetinaFace
 
-flags.DEFINE_string('weights_path', './data/retinafaceweights.npy',
-                    'network weights path')
 flags.DEFINE_string('sample_img', './sample-images/WC_FR.jpeg', 'image to test on')
 flags.DEFINE_string('save_destination', 'retinaface_tf2_output.jpg', "destination image")
 flags.DEFINE_float('det_thresh', 0.9, "detection threshold")
@@ -14,7 +12,7 @@ flags.DEFINE_bool('use_gpu_nms', False, "whether to use gpu for nms")
 
 
 def _main(_argv):
-    detector = RetinaFace(FLAGS.weights_path, FLAGS.use_gpu_nms, FLAGS.nms_thresh)
+    detector = RetinaFace(FLAGS.use_gpu_nms, FLAGS.nms_thresh)
     img = cv2.imread(FLAGS.sample_img)
     faces, landmarks = detector.detect(img, FLAGS.det_thresh)
     if faces is not None:

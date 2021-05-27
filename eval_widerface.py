@@ -5,15 +5,13 @@ from absl import app, flags, logging
 from absl.flags import FLAGS
 from retinaface import RetinaFace
 
-flags.DEFINE_string('weights_path', './data/retinafaceweights.npy',
-                    'network weights path')
 flags.DEFINE_string('widerface_data_dir', '/home/bertrans/Downloads/WIDER_val/images/', 'data directory of widerface test set')
 flags.DEFINE_string('save_folder', './WiderFace-Evaluation/results_val/',
                     'folder path to save evaluate results')
 
 
 def _main(_argv):
-    detector = RetinaFace(FLAGS.weights_path, use_gpu_nms = False)
+    detector = RetinaFace(use_gpu_nms = False)
     if not os.path.isdir(FLAGS.save_folder):
         os.mkdir(FLAGS.save_folder)
     subdirs = [x[0] for x in os.walk(FLAGS.widerface_data_dir)][1:]

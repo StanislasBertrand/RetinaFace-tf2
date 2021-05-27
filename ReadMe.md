@@ -57,7 +57,7 @@ mAP result values on the WIDERFACE validation dataset:
 In order to verify the models accuracy on the WiderFace dataset:
 * Run the model on the dataset and generate text files as results
 ```angular2
-python eval_widerface --weights_path="data/retinafaceweights.npy" --widerface_data_dir = "/data/WIDER_test/images" --save_folder="./WiderFace-Evaluation/results/"
+python eval_widerface --widerface_data_dir = "/data/WIDER_test/images" --save_folder="./WiderFace-Evaluation/results/"
 ```
 * Evaluate the results
 ```angular2

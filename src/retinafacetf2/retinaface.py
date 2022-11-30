@@ -11,7 +11,7 @@ from .utils.file_utils import *
 
 class RetinaFace:
     def __init__(self, use_gpu_nms=True, nms=0.4):
-        self.model_weights = cached_path(LINKS["retinaface_weights"])
+        self.model_weights = cached_path("./data/retinafaceweights.npy")
         self.nms_threshold = nms
         self.fpn_keys = []
         self.anchor_cfg = None
